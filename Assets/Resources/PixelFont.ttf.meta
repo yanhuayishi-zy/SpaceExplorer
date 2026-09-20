@@ -1,0 +1,38 @@
+fileFormatVersion: 2
+guid: a1b2c3d4e5f64789a0b1c2d3e4f50617
+FontImporter:
+  externalObjects: {}
+  serializedVersion: 11
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  includeFontData: 1
+  fontNames:
+  - Zpix
+  fallbackFontReferences: []
+  customCharacters: 
+  fontAsset:
+    instanceID: 0
+  fontSize: 16
+  tabSize: 10
+  characterPadding: 1
+  characterSpacing: 0
+  wordSpacing: 0
+  characterSpacingHorizontally: 0
+  characterSpacingVertically: 0
+  fontStyle: 0
+  normalStyle: 0
+  boldStyle: 0.5
+  italicStyle: 0
+  boldSpacing: 0
+  underlineSize: 1
+  strikethroughSize: 1
+  superscriptOffset: 0.35
+  superscriptSize: 0.6
+  subscriptOffset: 0.2
+  subscriptSize: 0.6
+  columnPadding: 0
+  textureCase: 0
+  assetBundleName: 
+  assetBundleVariant: 
