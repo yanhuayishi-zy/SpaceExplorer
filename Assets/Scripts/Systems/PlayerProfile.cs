@@ -182,7 +182,7 @@ public static class PlayerProfile
 
     public static string LeaderboardUrl
     {
-        get => PlayerPrefs.GetString(KeyLbUrl, "http://127.0.0.1:8080");
+        get => PlayerPrefs.GetString(KeyLbUrl, "https://yx1.1565568.xyz");
         set
         {
             PlayerPrefs.SetString(KeyLbUrl, (value ?? "").Trim());

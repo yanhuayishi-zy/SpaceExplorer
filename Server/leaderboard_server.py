@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-黄道征途 · 排行榜服务
-部署在 Linux VPS：
-  pip install flask
-  python3 leaderboard_server.py
-默认监听 0.0.0.0:8080
-客户端 Unity leaderboardUrl 填 http://你的公网IP:8080
+SpaceExplorer leaderboard.
+Default: 127.0.0.1:18080 (behind 1Panel reverse proxy).
 """
 from flask import Flask, request, jsonify
 from pathlib import Path
 import json
+import os
 import threading
 
 app = Flask(__name__)
-DATA = Path(__file__).parent / "leaderboard.json"
+BASE = Path(os.environ.get("LB_DATA_DIR", Path(__file__).parent))
+DATA = BASE / "leaderboard.json"
 LOCK = threading.Lock()
+PORT = int(os.environ.get("LB_PORT", "18080"))
+HOST = os.environ.get("LB_HOST", "127.0.0.1")
+
 
 def load():
     if DATA.exists():
@@ -24,12 +25,16 @@ def load():
             return []
     return []
 
+
 def save(rows):
+    DATA.parent.mkdir(parents=True, exist_ok=True)
     DATA.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+
 
 @app.route("/health")
 def health():
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "service": "spaceexplorer-leaderboard"})
+
 
 @app.route("/submit", methods=["POST"])
 def submit():
@@ -47,7 +52,6 @@ def submit():
 
     with LOCK:
         rows = load()
-        # 同名保留最高分
         found = False
         for r in rows:
             if r.get("name") == name:
@@ -65,24 +69,30 @@ def submit():
 
     return jsonify({"ok": True, "name": name, "score": score})
 
+
 @app.route("/top")
 def top():
     with LOCK:
         rows = load()
     return jsonify(rows[:20])
 
+
 @app.route("/")
 def index():
     with LOCK:
         rows = load()
-    lines = ["<!doctype html><meta charset='utf-8'><title>无尽排行</title>",
-             "<h1>黄道征途 · 无尽模式排行</h1><ol>"]
+    lines = [
+        "<!doctype html><meta charset='utf-8'><title>无尽排行</title>",
+        "<h1>黄道征途 · 无尽模式排行</h1><ol>",
+    ]
     for r in rows[:20]:
         disp = r.get("display") or r.get("name")
         lines.append(f"<li>{disp} — {r.get('score')}</li>")
     lines.append("</ol>")
     return "\n".join(lines)
 
+
 if __name__ == "__main__":
-    print("Leaderboard on http://0.0.0.0:8080")
-    app.run(host="0.0.0.0", port=8080)
+    print(f"Leaderboard on http://{HOST}:{PORT}")
+    print(f"Data file: {DATA}")
+    app.run(host=HOST, port=PORT)
