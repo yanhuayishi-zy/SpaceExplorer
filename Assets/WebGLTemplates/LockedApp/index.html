@@ -105,20 +105,21 @@
     })();
   </script>
 
-  <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+  <script src="Build/WebGL.loader.js?v=__BUILD_VER__"></script>
   <script>
     var canvas = document.querySelector("#unity-canvas");
     var loading = document.querySelector("#unity-loading");
     var buildUrl = "Build";
+    var VER = "__BUILD_VER__";
     var config = {
-      dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
-      frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
-      codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+      dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}?v=" + VER,
+      frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}?v=" + VER,
+      codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}?v=" + VER,
 #if MEMORY_FILENAME
-      memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}",
+      memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}?v=" + VER,
 #endif
 #if SYMBOLS_FILENAME
-      symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+      symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}?v=" + VER,
 #endif
       streamingAssetsUrl: "StreamingAssets",
       companyName: {{{ JSON.stringify(COMPANY_NAME) }}},

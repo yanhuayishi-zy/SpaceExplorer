@@ -22,6 +22,7 @@ public static class BuildScript
         PlayerSettings.WebGL.template = "PROJECT:LockedApp";
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
         PlayerSettings.WebGL.decompressionFallback = true;
+        PlayerSettings.WebGL.dataCaching = false; // 避免手机 IndexedDB 旧缓存卡在加载中
         PlayerSettings.WebGL.linkerTarget = WebGLLinkerTarget.Wasm;
         PlayerSettings.runInBackground = true;
 

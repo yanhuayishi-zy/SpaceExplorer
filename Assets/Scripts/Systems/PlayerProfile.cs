@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 /// 玩家 ID 与排行榜隐私
@@ -64,9 +65,91 @@ public static class PlayerProfile
         customAvatarSprite = LoadCustomAvatar();
     }
 
+    /// 网页端：选图后写入本地存档，下次打开无需再传
+    public static bool SetCustomAvatarFromBytes(byte[] bytes)
+    {
+        if (bytes == null || bytes.Length < 8) return false;
+        try
+        {
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!tex.LoadImage(bytes))
+            {
+                LastAvatarStatus = "图片解码失败，请用 png/jpg";
+                return false;
+            }
+            customAvatarSprite = Sprite.Create(
+                tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            AvatarId = "custom";
+            // 持久化：文件 + PlayerPrefs（网页端 IndexedDB）
+            try
+            {
+                if (!Directory.Exists(CustomAvatarDir)) Directory.CreateDirectory(CustomAvatarDir);
+                File.WriteAllBytes(CustomAvatarPath, bytes);
+            }
+            catch (System.Exception fe) { Debug.LogWarning("save avatar file: " + fe.Message); }
+            try
+            {
+                PlayerPrefs.SetString(KeyCustomAvatarB64, System.Convert.ToBase64String(bytes));
+                PlayerPrefs.Save();
+            }
+            catch { }
+            LastAvatarStatus = "已保存本地头像（只需上传一次）";
+            return true;
+        }
+        catch (System.Exception e)
+        {
+            LastAvatarStatus = "头像加载失败";
+            Debug.LogWarning(e.Message);
+            return false;
+        }
+    }
+
+    public const string KeyCustomAvatarB64 = "SE_CustomAvatarB64";
+
+    public static byte[] GetCustomAvatarBytes()
+    {
+        try
+        {
+            if (File.Exists(CustomAvatarPath))
+            {
+                var b = File.ReadAllBytes(CustomAvatarPath);
+                if (b != null && b.Length > 8) return b;
+            }
+        }
+        catch { }
+        try
+        {
+            string b64 = PlayerPrefs.GetString(KeyCustomAvatarB64, "");
+            if (!string.IsNullOrEmpty(b64))
+            {
+                var b = System.Convert.FromBase64String(b64);
+                if (b != null && b.Length > 8) return b;
+            }
+        }
+        catch { }
+        return null;
+    }
+
     static Sprite LoadCustomAvatar()
     {
-        // 1) Resources 里放 CustomAvatar（最省事，编辑器）
+        // 0) PlayerPrefs 里的网页存档（刷新后优先）
+        try
+        {
+            string b64 = PlayerPrefs.GetString(KeyCustomAvatarB64, "");
+            if (!string.IsNullOrEmpty(b64))
+            {
+                var b = System.Convert.FromBase64String(b64);
+                var tex0 = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (b != null && b.Length > 8 && tex0.LoadImage(b))
+                {
+                    LastAvatarStatus = "已恢复本地头像";
+                    return Sprite.Create(tex0, new Rect(0, 0, tex0.width, tex0.height), new Vector2(0.5f, 0.5f), 100f);
+                }
+            }
+        }
+        catch { }
+
+        // 1) Resources
         var fromRes = Resources.Load<Sprite>(ResourceCustomAvatar);
         if (fromRes != null)
         {
@@ -74,7 +157,7 @@ public static class PlayerProfile
             return fromRes;
         }
 
-        // 2) 存档目录 avatar.png / 任意 png
+        // 2) 存档目录
         string path = CustomAvatarPath;
         if (!System.IO.File.Exists(path) && System.IO.Directory.Exists(CustomAvatarDir))
         {
@@ -83,17 +166,9 @@ public static class PlayerProfile
             if (files.Length > 0) path = files[0];
         }
 
-        // 3) StreamingAssets/Avatars
         if (!System.IO.File.Exists(path))
         {
-            string sa = System.IO.Path.Combine(Application.streamingAssetsPath, "Avatars");
-            string saFile = System.IO.Path.Combine(sa, "avatar.png");
-            if (System.IO.File.Exists(saFile)) path = saFile;
-        }
-
-        if (!System.IO.File.Exists(path))
-        {
-            LastAvatarStatus = "未找到自定义头像，请放入 avatar.png";
+            LastAvatarStatus = "未找到自定义头像，请选择一次本地图片";
             return null;
         }
 

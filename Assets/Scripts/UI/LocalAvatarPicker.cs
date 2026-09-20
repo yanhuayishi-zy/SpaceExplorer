@@ -3,9 +3,22 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// 本地选图：扫描常见目录，在游戏内列出图片供点选
+/// 本地选图：编辑器/PC 扫描目录；网页端走浏览器文件选择框
 public static class LocalAvatarPicker
 {
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [System.Runtime.InteropServices.DllImport("__Internal")]
+    static extern void OpenImagePicker();
+
+    public static void TryBrowserPick()
+    {
+        try { OpenImagePicker(); }
+        catch (System.Exception e) { Debug.LogWarning("OpenImagePicker: " + e.Message); }
+    }
+#else
+    public static void TryBrowserPick() { }
+#endif
+
     public static readonly string[] SearchDirs = new[]
     {
         System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyPictures),

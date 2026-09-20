@@ -195,6 +195,88 @@ public class MobileGameShell : MonoBehaviour
     readonly List<Image> profileTabs = new List<Image>();
     int profileTab;
     Text boardBody;
+    Transform boardRowsContent;
+    readonly List<GameObject> boardRowObjects = new List<GameObject>();
+
+    class BoardEntry
+    {
+        public string name;
+        public string display;
+        public string avatar;
+        public string title;
+        public int score;
+        public bool hide;
+    }
+
+    static string UnescapeJson(string s)
+    {
+        if (string.IsNullOrEmpty(s) || s.IndexOf('\\') < 0) return s ?? "";
+        var sb = new System.Text.StringBuilder(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] == '\\' && i + 5 < s.Length && (s[i + 1] == 'u' || s[i + 1] == 'U'))
+            {
+                string hex = s.Substring(i + 2, 4);
+                if (int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out int cp))
+                {
+                    sb.Append((char)cp);
+                    i += 5;
+                    continue;
+                }
+            }
+            sb.Append(s[i]);
+        }
+        return sb.ToString();
+    }
+
+    static string JsonField(string json, int start, string key)
+    {
+        int p = json.IndexOf("\"" + key + "\"", start, System.StringComparison.Ordinal);
+        if (p < 0) return null;
+        int colon = json.IndexOf(':', p);
+        if (colon < 0) return null;
+        int i = colon + 1;
+        while (i < json.Length && char.IsWhiteSpace(json[i])) i++;
+        if (i >= json.Length) return null;
+        if (json[i] == '"')
+        {
+            int q2 = json.IndexOf('"', i + 1);
+            if (q2 < 0) return null;
+            return UnescapeJson(json.Substring(i + 1, q2 - i - 1));
+        }
+        if (json[i] == 't' || json[i] == 'f')
+            return json[i] == 't' ? "true" : "false";
+        int end = json.IndexOfAny(new[] { ',', '}', ']' }, i);
+        if (end < 0) end = json.Length;
+        return json.Substring(i, end - i).Trim();
+    }
+
+    static List<BoardEntry> ParseBoard(string json)
+    {
+        var list = new List<BoardEntry>();
+        if (string.IsNullOrEmpty(json) || json == "[]") return list;
+        int idx = 0;
+        while (idx < json.Length && list.Count < 20)
+        {
+            int n = json.IndexOf("\"name\"", idx, System.StringComparison.Ordinal);
+            if (n < 0) break;
+            int braceEnd = json.IndexOf('}', n);
+            if (braceEnd < 0) braceEnd = json.Length;
+            var e = new BoardEntry
+            {
+                name = JsonField(json, n, "name") ?? "",
+                display = JsonField(json, n, "display") ?? "",
+                avatar = JsonField(json, n, "avatar") ?? "",
+                title = JsonField(json, n, "title") ?? "",
+            };
+            e.hide = JsonField(json, n, "hide") == "true";
+            int.TryParse(JsonField(json, n, "score"), out e.score);
+            if (string.IsNullOrEmpty(e.display)) e.display = e.name;
+            list.Add(e);
+            idx = braceEnd + 1;
+        }
+        return list;
+    }
 
     /// 档案枢纽：页签 + 内容区；内容每次切页重建，避免空引用
     Transform profileBody;
@@ -539,53 +621,287 @@ public class MobileGameShell : MonoBehaviour
 
     void BuildBoardInto(Transform parent)
     {
-        var tipLb = MakeText(parent, "无尽模式 · 分数排行（仅无尽上报）", 22, Vector2.zero, UiStyle.TextSecondary);
-        AnchorTop(tipLb.rectTransform, 0f);
-        tipLb.rectTransform.sizeDelta = new Vector2(720f, 30f);
-        profileBodyItems.Add(tipLb.gameObject);
-        boardBody = MakeText(parent, "加载中…", 26, Vector2.zero, UiStyle.TextSecondary);
-        boardBody.alignment = TextAnchor.UpperCenter;
-        AnchorTop(boardBody.rectTransform, 36f);
-        boardBody.rectTransform.sizeDelta = new Vector2(820f, 320f);
-        profileBodyItems.Add(boardBody.gameObject);
+        boardRowObjects.Clear();
+        boardRowsContent = null;
 
-        var refresh = MakeBigButton(parent, "刷新", Vector2.zero, () =>
+        var card = new GameObject("BoardCard", typeof(RectTransform), typeof(Image));
+        card.transform.SetParent(parent, false);
+        var cimg = card.GetComponent<Image>();
+        cimg.color = new Color(0.04f, 0.07f, 0.14f, 0.94f);
+        cimg.raycastTarget = true;
+        var crt = (RectTransform)card.transform;
+        crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 1f);
+        crt.pivot = new Vector2(0.5f, 1f);
+        crt.anchoredPosition = new Vector2(0f, 4f);
+        crt.sizeDelta = new Vector2(860f, 460f);
+        profileBodyItems.Add(card);
+
+        var tipLb = MakeText(card.transform, "无尽模式 · 全服分数排行", 24, Vector2.zero, UiStyle.Gold);
+        tipLb.alignment = TextAnchor.MiddleCenter;
+        var trt = tipLb.rectTransform;
+        trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 1f);
+        trt.pivot = new Vector2(0.5f, 1f);
+        trt.anchoredPosition = new Vector2(0f, -14f);
+        trt.sizeDelta = new Vector2(700f, 32f);
+        profileBodyItems.Add(tipLb.gameObject);
+
+        var sub = MakeText(card.transform, "头像 · 名字 · 称号 · 分数（隐藏玩家已打码）", 16, Vector2.zero, UiStyle.TextMuted);
+        sub.alignment = TextAnchor.MiddleCenter;
+        var srt = sub.rectTransform;
+        srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 1f);
+        srt.pivot = new Vector2(0.5f, 1f);
+        srt.anchoredPosition = new Vector2(0f, -42f);
+        srt.sizeDelta = new Vector2(760f, 22f);
+        profileBodyItems.Add(sub.gameObject);
+
+        Transform rowsContent;
+        var scroll = MakeTopScroll(card.transform, "BoardScroll", out rowsContent, 800f, 280f, 72f);
+        profileBodyItems.Add(scroll.gameObject);
+        boardRowsContent = rowsContent;
+
+        var refresh = MakeBigButton(card.transform, "刷新排行", Vector2.zero, () =>
         {
             RefreshLeaderboard();
-        }, UiStyle.Blue, 160f, 52f);
-        AnchorTop(refresh.GetComponent<RectTransform>(), -340f);
+        }, UiStyle.Blue, 180f, 46f);
+        var rrt = refresh.GetComponent<RectTransform>();
+        rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 1f);
+        rrt.pivot = new Vector2(0.5f, 1f);
+        rrt.anchoredPosition = new Vector2(0f, -375f);
         profileBodyItems.Add(refresh);
 
-        boardBody.text = "加载中…";
+        boardBody = MakeText(card.transform, "加载中…", 22, Vector2.zero, UiStyle.TextSecondary);
+        boardBody.alignment = TextAnchor.MiddleCenter;
+        var brt = boardBody.rectTransform;
+        brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 1f);
+        brt.pivot = new Vector2(0.5f, 1f);
+        brt.anchoredPosition = new Vector2(0f, -200f);
+        brt.sizeDelta = new Vector2(400f, 40f);
+        SetBoardStatus("加载中…");
         try
         {
-            LeaderboardClient.FetchTop(PlayerProfile.LeaderboardUrl, json =>
-            {
-                if (boardBody != null) boardBody.text = FormatBoard(json);
-            });
+            LeaderboardClient.FetchTop(PlayerProfile.LeaderboardUrl, FillBoardRows);
         }
         catch (System.Exception e)
         {
-            if (boardBody != null) boardBody.text = "暂无排行数据（未连接服务器）";
+            SetBoardStatus("暂无排行数据（未连接服务器）");
             Debug.LogWarning(e.Message);
         }
     }
 
-    void RefreshLeaderboard()
+    void SetBoardStatus(string msg)
     {
         if (boardBody == null) return;
-        boardBody.text = "加载中…";
+        bool empty = boardRowObjects.Count == 0;
+        boardBody.gameObject.SetActive(empty);
+        boardBody.text = msg;
+        if (boardRowsContent != null)
+        {
+            var rt = boardBody.rectTransform;
+            rt.SetParent(boardRowsContent, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = new Vector2(0f, -40f);
+            rt.sizeDelta = new Vector2(600f, 40f);
+        }
+    }
+
+    void FillBoardRows(string json)
+    {
+        foreach (var go in boardRowObjects) if (go != null) Object.Destroy(go);
+        boardRowObjects.Clear();
+        if (boardRowsContent == null)
+        {
+            SetBoardStatus("界面未就绪");
+            return;
+        }
+
+        var rows = ParseBoard(json);
+        if (rows.Count == 0)
+        {
+            SetBoardStatus("暂无排行数据\n去打一局无尽模式吧");
+            return;
+        }
+
+        float y = 0f;
+        const float rowH = 64f;
+        string myId = PlayerProfile.PlayerId;
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var e = rows[i];
+            bool isMe = e.name == myId;
+            bool mask = e.hide && !isMe;
+
+            var row = new GameObject("BRow" + i, typeof(RectTransform), typeof(Image));
+            row.transform.SetParent(boardRowsContent, false);
+            var rimg = row.GetComponent<Image>();
+            rimg.color = isMe
+                ? new Color(0.12f, 0.22f, 0.34f, 0.95f)
+                : new Color(0.08f, 0.11f, 0.18f, 0.92f);
+            rimg.raycastTarget = false;
+            var rrt = (RectTransform)row.transform;
+            rrt.anchorMin = new Vector2(0f, 1f);
+            rrt.anchorMax = new Vector2(1f, 1f);
+            rrt.pivot = new Vector2(0.5f, 1f);
+            rrt.anchoredPosition = new Vector2(0f, -y);
+            rrt.sizeDelta = new Vector2(0f, rowH - 6f);
+            boardRowObjects.Add(row);
+
+            var rankTx = MakeText(row.transform, (i + 1).ToString(), 20, Vector2.zero,
+                i < 3 ? UiStyle.Gold : UiStyle.TextMuted);
+            rankTx.alignment = TextAnchor.MiddleCenter;
+            var krt = rankTx.rectTransform;
+            krt.anchorMin = krt.anchorMax = new Vector2(0f, 0.5f);
+            krt.pivot = new Vector2(0f, 0.5f);
+            krt.anchoredPosition = new Vector2(12f, 0f);
+            krt.sizeDelta = new Vector2(36f, 40f);
+
+            var avGo = new GameObject("Av");
+            avGo.transform.SetParent(row.transform, false);
+            var av = avGo.AddComponent<Image>();
+            av.preserveAspect = true;
+            av.raycastTarget = false;
+            if (mask)
+            {
+                av.sprite = null;
+                av.color = Color.black;
+            }
+            else if (isMe)
+            {
+                av.sprite = PlayerProfile.LoadAvatarSprite();
+                av.color = Color.white;
+            }
+            else if (e.avatar == "custom")
+            {
+                // 从服务器拉该号主上传的自定义头像
+                av.sprite = null;
+                av.color = new Color(0.2f, 0.22f, 0.28f, 1f);
+                StartCoroutine(LoadRemoteAvatar(e.name, av));
+            }
+            else
+            {
+                string aid = e.avatar;
+                if (string.IsNullOrEmpty(aid) || aid == "custom") aid = "mortal";
+                av.sprite = PlayerProfile.LoadAvatarSprite(aid);
+                av.color = Color.white;
+            }
+            var art = (RectTransform)avGo.transform;
+            art.anchorMin = art.anchorMax = new Vector2(0f, 0.5f);
+            art.pivot = new Vector2(0f, 0.5f);
+            art.anchoredPosition = new Vector2(56f, 0f);
+            art.sizeDelta = new Vector2(48f, 48f);
+
+            string showName, showTitle;
+            if (mask)
+            {
+                showName = "****";
+                showTitle = "";
+            }
+            else if (isMe)
+            {
+                showName = string.IsNullOrEmpty(myId) ? "匿名" : myId;
+                showTitle = Achievements.CurrentTitle;
+            }
+            else
+            {
+                showName = e.name;
+                showTitle = e.title;
+                if (string.IsNullOrEmpty(showTitle) && !string.IsNullOrEmpty(e.display))
+                {
+                    int a = e.display.IndexOf('「');
+                    int b = e.display.IndexOf('」');
+                    if (a >= 0 && b > a)
+                    {
+                        showTitle = e.display.Substring(a + 1, b - a - 1);
+                        if (a > 0) showName = e.display.Substring(0, a);
+                    }
+                }
+            }
+
+            var nameTx = MakeText(row.transform, showName, 20, Vector2.zero,
+                mask ? UiStyle.TextMuted : (isMe ? UiStyle.Cyan : UiStyle.TextPrimary));
+            nameTx.alignment = TextAnchor.MiddleLeft;
+            var nrt = nameTx.rectTransform;
+            nrt.anchorMin = nrt.anchorMax = new Vector2(0f, 0.5f);
+            nrt.pivot = new Vector2(0f, 0.5f);
+            nrt.anchoredPosition = new Vector2(116f, string.IsNullOrEmpty(showTitle) ? 0f : 8f);
+            nrt.sizeDelta = new Vector2(280f, 28f);
+
+            if (!string.IsNullOrEmpty(showTitle))
+            {
+                var tTx = MakeText(row.transform, "「" + showTitle + "」", 15, Vector2.zero, UiStyle.TextSecondary);
+                tTx.alignment = TextAnchor.MiddleLeft;
+                var ttx = tTx.rectTransform;
+                ttx.anchorMin = ttx.anchorMax = new Vector2(0f, 0.5f);
+                ttx.pivot = new Vector2(0f, 0.5f);
+                ttx.anchoredPosition = new Vector2(116f, -14f);
+                ttx.sizeDelta = new Vector2(280f, 22f);
+            }
+
+            var scoreTx = MakeText(row.transform, mask ? "****" : e.score.ToString(), 22, Vector2.zero,
+                mask ? UiStyle.TextMuted : UiStyle.Gold);
+            scoreTx.alignment = TextAnchor.MiddleRight;
+            var scRt = scoreTx.rectTransform;
+            scRt.anchorMin = scRt.anchorMax = new Vector2(1f, 0.5f);
+            scRt.pivot = new Vector2(1f, 0.5f);
+            scRt.anchoredPosition = new Vector2(-20f, 0f);
+            scRt.sizeDelta = new Vector2(160f, 36f);
+
+            y += rowH;
+        }
+
+        if (boardRowsContent is RectTransform contentRt)
+            contentRt.sizeDelta = new Vector2(0f, Mathf.Max(280f, y + 12f));
+
+        if (boardBody != null) boardBody.gameObject.SetActive(false);
+    }
+
+    void RefreshLeaderboard()
+    {
+        SetBoardStatus("加载中…");
         try
         {
-            LeaderboardClient.FetchTop(PlayerProfile.LeaderboardUrl, json =>
-            {
-                if (boardBody != null) boardBody.text = FormatBoard(json);
-            });
+            LeaderboardClient.FetchTop(PlayerProfile.LeaderboardUrl, FillBoardRows);
         }
         catch (System.Exception e)
         {
-            if (boardBody != null) boardBody.text = "暂无排行数据";
+            SetBoardStatus("暂无排行数据");
             Debug.LogWarning(e.Message);
+        }
+    }
+
+    static readonly Dictionary<string, Sprite> remoteAvatarCache = new Dictionary<string, Sprite>();
+
+    System.Collections.IEnumerator LoadRemoteAvatar(string playerName, Image img)
+    {
+        if (img == null || string.IsNullOrEmpty(playerName)) yield break;
+        if (remoteAvatarCache.TryGetValue(playerName, out var cached) && cached != null)
+        {
+            if (img != null) { img.sprite = cached; img.color = Color.white; }
+            yield break;
+        }
+        string url = PlayerProfile.LeaderboardUrl.TrimEnd('/') + "/avatar/" + UnityEngine.Networking.UnityWebRequest.EscapeURL(playerName);
+        using (var req = UnityEngine.Networking.UnityWebRequestTexture.GetTexture(url))
+        {
+            yield return req.SendWebRequest();
+            if (img == null) yield break;
+            if (req.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                var tex = UnityEngine.Networking.DownloadHandlerTexture.GetContent(req);
+                if (tex != null)
+                {
+                    var spr = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+                    remoteAvatarCache[playerName] = spr;
+                    img.sprite = spr;
+                    img.color = Color.white;
+                }
+            }
+            else
+            {
+                // 拉不到则退回默认机体图
+                img.sprite = PlayerProfile.LoadAvatarSprite("mortal");
+                img.color = Color.white;
+            }
         }
     }
 
@@ -818,7 +1134,7 @@ public class MobileGameShell : MonoBehaviour
 
     GameObject localPickPanel;
 
-    /// 游戏内选图：列出本机图片目录中的照片
+    /// 游戏内选图
     void OpenLocalAvatarPicker(Transform host)
     {
 #if UNITY_EDITOR
@@ -828,6 +1144,11 @@ public class MobileGameShell : MonoBehaviour
             return;
         }
 #endif
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // 网页版：浏览器不允许扫本地文件夹，改用系统文件选择框
+        LocalAvatarPicker.TryBrowserPick();
+        return;
+#else
         if (localPickPanel != null) Destroy(localPickPanel);
         var root = new GameObject("LocalPickPanel", typeof(RectTransform), typeof(Image));
         localPickPanel = root;
@@ -914,6 +1235,27 @@ public class MobileGameShell : MonoBehaviour
                     ShowProfileTab(2);
                 }
             });
+        }
+#endif
+    }
+
+    /// 网页端文件选择回调（jslib SendMessage）
+    public void OnWebGLAvatarBase64(string base64)
+    {
+        if (string.IsNullOrEmpty(base64)) return;
+        try
+        {
+            byte[] bytes = System.Convert.FromBase64String(base64);
+            if (PlayerProfile.SetCustomAvatarFromBytes(bytes))
+            {
+                if (localPickPanel != null) { Destroy(localPickPanel); localPickPanel = null; }
+                ShowProfileTab(2);
+                RefreshModeGateInfo();
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("OnWebGLAvatarBase64: " + e.Message);
         }
     }
 
@@ -1632,57 +1974,37 @@ public class MobileGameShell : MonoBehaviour
 
     string FormatBoard(string json)
     {
-        if (string.IsNullOrEmpty(json) || json == "[]") return "暂无排行数据\n（请检查排行榜地址）";
+        var rows = ParseBoard(json);
+        if (rows.Count == 0) return "暂无排行数据\n去打一局无尽模式吧";
         var list = new List<string>();
-        int idx = 0;
-        int rank = 1;
-        while (idx < json.Length && rank <= 12)
+        string myId = PlayerProfile.PlayerId;
+        for (int i = 0; i < rows.Count && i < 12; i++)
         {
-            int n = json.IndexOf("\"name\"", idx, System.StringComparison.Ordinal);
-            if (n < 0) break;
-            int q1 = json.IndexOf('"', n + 6);
-            int q2 = json.IndexOf('"', q1 + 1);
-            int q3 = json.IndexOf('"', q2 + 1);
-            if (q1 < 0 || q2 < 0 || q3 < 0) break;
-            string rawName = json.Substring(q2 + 1, q3 - q2 - 1);
-
-            // 优先用服务端 display（含称号；隐藏时客户端已不带称号）
-            string show = rawName;
-            int dPos = json.IndexOf("\"display\"", q3, System.StringComparison.Ordinal);
-            if (dPos > 0 && dPos < q3 + 200)
+            var e = rows[i];
+            bool mask = e.hide && e.name != myId;
+            string show, scoreStr;
+            if (mask)
             {
-                int dq1 = json.IndexOf('"', dPos + 9);
-                int dq2 = json.IndexOf('"', dq1 + 1);
-                int dq3 = json.IndexOf('"', dq2 + 1);
-                if (dq1 > 0 && dq2 > 0 && dq3 > 0)
-                {
-                    string disp = json.Substring(dq2 + 1, dq3 - dq2 - 1);
-                    if (!string.IsNullOrEmpty(disp)) show = disp;
-                }
+                show = "****";
+                scoreStr = "****";
             }
-
-            int s = json.IndexOf("\"score\"", q3, System.StringComparison.Ordinal);
-            if (s < 0) break;
-            int colon = json.IndexOf(':', s);
-            int comma = json.IndexOfAny(new[] { ',', '}' }, colon + 1);
-            if (colon < 0 || comma < 0) break;
-            string scoreStr = json.Substring(colon + 1, comma - colon - 1).Trim();
-
-            // 自己这一行始终可见完整信息；隐藏只影响别人看到的
-            if (rawName == PlayerProfile.PlayerId)
+            else if (e.name == myId)
             {
-                string title = Achievements.CurrentTitle;
-                string me = PlayerProfile.PlayerId;
-                if (string.IsNullOrEmpty(me)) me = "匿名";
-                show = string.IsNullOrEmpty(title) ? me : (me + "「" + title + "」");
+                string t = Achievements.CurrentTitle;
+                string me = string.IsNullOrEmpty(myId) ? "匿名" : myId;
+                show = string.IsNullOrEmpty(t) ? me : (me + "「" + t + "」");
+                scoreStr = e.score.ToString();
             }
-
-            list.Add(rank + "  " + show + "　　" + scoreStr);
-            rank++;
-            idx = comma;
+            else
+            {
+                show = string.IsNullOrEmpty(e.display) ? e.name : e.display;
+                if (!string.IsNullOrEmpty(e.title) && show.IndexOf('「') < 0)
+                    show = e.name + "「" + e.title + "」";
+                scoreStr = e.score.ToString();
+            }
+            list.Add(string.Format("{0,2}. {1}　{2}", i + 1, show, scoreStr));
         }
-        if (list.Count == 0) return "暂无排行数据";
-        return string.Join("\n\n", list);
+        return string.Join("\n", list);
     }
 
     static string MaskAny(string id)

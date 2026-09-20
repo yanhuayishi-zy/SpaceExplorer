@@ -4,7 +4,7 @@ SpaceExplorer leaderboard + WebGL host.
 API: /health /submit /top
 Game static: ./webgl/ (index.html etc.)
 """
-from flask import Flask, request, jsonify, send_from_directory, abort
+from flask import Flask, request, jsonify, send_from_directory, abort, make_response
 from pathlib import Path
 import json
 import os
@@ -19,7 +19,8 @@ HOST = os.environ.get("LB_HOST", "127.0.0.1")
 
 app = Flask(__name__)
 
-API_PATHS = {"/health", "/submit", "/top"}
+API_PATHS = {"/health", "/submit", "/top", "/avatar"}
+AVATAR_DIR = BASE / "avatars"
 
 
 def load():
@@ -69,6 +70,8 @@ def submit():
     hide = bool(body.get("hide", False))
     display = body.get("display") or name
     display = str(display)[:32]
+    avatar = str(body.get("avatar", ""))[:32]
+    title = str(body.get("title", ""))[:32]
 
     with LOCK:
         rows = load()
@@ -79,10 +82,15 @@ def submit():
                     r["score"] = score
                 r["display"] = display
                 r["hide"] = hide
+                r["avatar"] = avatar
+                r["title"] = title
                 found = True
                 break
         if not found:
-            rows.append({"name": name, "score": score, "display": display, "hide": hide})
+            rows.append({
+                "name": name, "score": score, "display": display,
+                "hide": hide, "avatar": avatar, "title": title
+            })
         rows.sort(key=lambda x: int(x.get("score", 0)), reverse=True)
         rows = rows[:50]
         save(rows)
@@ -96,6 +104,44 @@ def top():
     return jsonify(rows[:20])
 
 
+@app.route("/avatar", methods=["POST", "OPTIONS"])
+def upload_avatar():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.get_json(silent=True) or {}
+    name = str(body.get("name", ""))[:32]
+    image = str(body.get("image", ""))
+    if not name or not image:
+        return jsonify({"ok": False, "error": "missing"}), 400
+    try:
+        import base64
+        raw = base64.b64decode(image)
+        if len(raw) < 32 or len(raw) > 2_000_000:
+            return jsonify({"ok": False, "error": "bad image"}), 400
+        AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+        # 文件名安全化
+        safe = "".join(ch for ch in name if ch.isalnum() or ch in "_-") or "anon"
+        (AVATAR_DIR / (safe + ".png")).write_bytes(raw)
+        return jsonify({"ok": True, "name": name})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
+@app.route("/avatar/<path:name>")
+def get_avatar(name):
+    import base64
+    safe = "".join(ch for ch in name if ch.isalnum() or ch in "_-") or ""
+    if not safe:
+        abort(404)
+    path = AVATAR_DIR / (safe + ".png")
+    if not path.is_file():
+        abort(404)
+    resp = make_response(path.read_bytes())
+    resp.headers["Content-Type"] = "image/png"
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
 @app.route("/")
 def index():
     index_file = WEBGL / "index.html"
@@ -107,13 +153,18 @@ def index():
             "排行：<a href='/top'>/top</a></p>",
             200,
         )
-    return send_from_directory(WEBGL, "index.html")
+    data = index_file.read_bytes()
+    resp = make_response(data)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    # 首页始终拉最新，资源靠 ?v= 缓存破坏
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return resp
 
 
 @app.route("/<path:path>")
 def static_files(path):
     # API 优先
-    if "/" + path.split("/")[0] in API_PATHS:
+    if "/" + path.split("/")[0] in API_PATHS or path.startswith("avatar/"):
         abort(404)
     if not WEBGL.exists():
         abort(404)
