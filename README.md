@@ -36,7 +36,13 @@ python leaderboard_server.py
 python multiplayer_server.py
 ```
 
-默认监听 `0.0.0.0:8080`。客户端排行榜地址填 `http://你的公网IP:8080`。
+默认监听 `127.0.0.1:18080`（可用环境变量 `LB_PORT` / `LB_HOST` 修改）。公网经 1Panel 反代后，客户端排行榜地址为：
+
+```csharp
+PlayerProfile.LeaderboardUrl = "https://yx1.1565568.xyz";
+```
+
+本地自测也可直接跑在 `http://127.0.0.1:8080`，再把上述地址改成对应本机地址。
 
 如果在 Windows PowerShell 里遇到执行策略拦截，可改用完整 Python 路径或 `py -3 leaderboard_server.py`。
 
