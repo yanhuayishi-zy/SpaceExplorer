@@ -98,6 +98,13 @@ public class MobileControls : MonoBehaviour
 
     void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, UnityEngine.SceneManagement.LoadSceneMode m)
     {
+        if (MobileTuning.Active)
+        {
+            // 本对象跨场景保留，但场景内 EventSystem 会被销毁；每关都要重新保证存在。
+            EnsureEventSystem();
+            specialRequested = false;
+            subSkillRequested = false;
+        }
         // 场景切换后确保圆钮还在
         if (GameObject.Find("MobileTouchCanvas") == null)
             BuildTouchUi();
@@ -200,7 +207,7 @@ public class MobileControls : MonoBehaviour
         iconImg.sprite = icon != null ? icon : CircleSprite();
         iconImg.color = Color.white;
         iconImg.preserveAspect = true;
-        iconImg.raycastTarget = false;
+        iconImg.raycastTarget = MobileTuning.Active;
         Stretch(iconImg.rectTransform);
         iconImg.rectTransform.offsetMin = new Vector2(size * 0.14f, size * 0.14f);
         iconImg.rectTransform.offsetMax = new Vector2(-size * 0.14f, -size * 0.14f);
@@ -287,7 +294,22 @@ public class MobileControls : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         scaler.matchWidthOrHeight = 1f;
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
+
+        Transform buttonParent = canvasGo.transform;
+        if (MobileTuning.Active)
+        {
+            var safeGo = new GameObject("SafeArea", typeof(RectTransform));
+            safeGo.transform.SetParent(canvasGo.transform, false);
+            var safeRt = (RectTransform)safeGo.transform;
+            Rect safe = Screen.safeArea;
+            safeRt.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
+            safeRt.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
+            safeRt.offsetMin = Vector2.zero;
+            safeRt.offsetMax = Vector2.zero;
+            buttonParent = safeGo.transform;
+        }
 
         var cur = ShipMeta.Current;
         Color ultTint = SkillTint(cur != null ? cur.skill : ShipMeta.GodSkill.None);
@@ -297,20 +319,24 @@ public class MobileControls : MonoBehaviour
         Sprite subIcon = LoadSubIcon(shipId);
 
         Image f1, r1; Text t1; Button b1;
-        MakeSkillButton(canvasGo.transform, new Vector2(-40f, 40f), 156f,
+        float ultSize = MobileTuning.Active && MobileTuning.Portrait ? 172f : 156f;
+        float subSize = MobileTuning.Active && MobileTuning.Portrait ? 132f : 118f;
+        Vector2 ultPos = MobileTuning.Active ? new Vector2(-28f, 30f) : new Vector2(-40f, 40f);
+        Vector2 subPos = MobileTuning.Active ? new Vector2(-36f, 222f) : new Vector2(-40f, 220f);
+        MakeSkillButton(buttonParent, ultPos, ultSize,
             out f1, out r1, out t1, out b1,
             ultTint, new Color(ultTint.r, ultTint.g, ultTint.b, 0.72f),
             ultIcon, "");
         ultFill = f1; ultReadyRing = r1; ultName = t1; ultBtn = b1;
-        b1.onClick.AddListener(() => specialRequested = true);
+        b1.onClick.AddListener(RequestSpecial);
 
         Image f2, r2; Text t2; Button b2;
-        MakeSkillButton(canvasGo.transform, new Vector2(-40f, 220f), 118f,
+        MakeSkillButton(buttonParent, subPos, subSize,
             out f2, out r2, out t2, out b2,
             subTint, new Color(subTint.r, subTint.g, subTint.b, 0.65f),
             subIcon, "");
         subFill = f2; subReadyRing = r2; subName = t2; subBtn = b2;
-        b2.onClick.AddListener(() => subSkillRequested = true);
+        b2.onClick.AddListener(RequestSubSkill);
     }
 
     static string SkillChar(ShipMeta.ShipDef def, bool ult)
@@ -430,7 +456,35 @@ public class MobileControls : MonoBehaviour
         }
     }
 
-    public void RequestSpecial() => specialRequested = true;
+    void ResolveShooting()
+    {
+        if (shooting != null && !shooting.Equals(null)) return;
+        var player = GameObject.Find("Player");
+        shooting = player != null ? player.GetComponent<PlayerShooting>() : null;
+    }
+
+    public void RequestSpecial()
+    {
+        if (!MobileTuning.Active)
+        {
+            specialRequested = true;
+            return;
+        }
+        ResolveShooting();
+        if (shooting != null) shooting.TryCastUltimate();
+    }
+
+    public void RequestSubSkill()
+    {
+        if (!MobileTuning.Active)
+        {
+            subSkillRequested = true;
+            return;
+        }
+        ResolveShooting();
+        if (shooting != null) shooting.TryCastSub();
+    }
+
     public void RequestRestart() => restartRequested = true;
 
     static void Stretch(RectTransform rt)

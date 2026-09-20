@@ -63,6 +63,11 @@ public class ZodiacBossAI : MonoBehaviour
     IEnumerator IntroDrop()
     {
         Vector3 target = new Vector3(0f, 3.2f, 0f);
+        if (MobileTuning.Active)
+        {
+            MobileTuning.CameraBounds(out _, out float halfH);
+            target.y = Mathf.Clamp(halfH * 0.58f, 2.1f, halfH - 1.1f);
+        }
         float t = 0f;
         while (t < 1.2f)
         {
@@ -91,7 +96,19 @@ public class ZodiacBossAI : MonoBehaviour
         // 待机：上半屏左右游走 + 轻微上下，绝不停着发呆
         float tt = Time.time - t0;
         float bobY = home.y + Mathf.Sin(tt * 0.9f) * 0.35f;
-        float patrolX = home.x + Mathf.Sin(tt * 0.55f) * 2.4f * (phase == 0 ? 1f : 1.35f);
+        float patrolRange = 2.4f;
+        float xLimit = 4.2f;
+        float minY = 2f;
+        float maxY = 3.8f;
+        if (MobileTuning.Active)
+        {
+            MobileTuning.CameraBounds(out float halfW, out float halfH);
+            xLimit = Mathf.Max(0.8f, halfW - 0.65f);
+            patrolRange = Mathf.Min(patrolRange, xLimit * 0.9f);
+            minY = Mathf.Max(1.5f, halfH * 0.36f);
+            maxY = halfH - 1.05f;
+        }
+        float patrolX = home.x + Mathf.Sin(tt * 0.55f) * patrolRange * (phase == 0 ? 1f : 1.15f);
         // 狂暴时更靠近玩家一侧但仍保持高度
         if (phase == 1)
         {
@@ -99,12 +116,12 @@ public class ZodiacBossAI : MonoBehaviour
             patrolX = Mathf.Lerp(patrolX, px, 0.25f + 0.15f * Mathf.Sin(tt));
         }
         // 高度钳制：不冲到玩家脸上
-        float y = Mathf.Clamp(bobY, 2.0f, 3.8f);
-        Vector3 want = new Vector3(Mathf.Clamp(patrolX, -4.2f, 4.2f), y, 0f);
+        float y = Mathf.Clamp(bobY, minY, maxY);
+        Vector3 want = new Vector3(Mathf.Clamp(patrolX, -xLimit, xLimit), y, 0f);
         transform.position = Vector3.Lerp(transform.position, want, Time.deltaTime * 3.5f);
         home = new Vector3(Mathf.Lerp(home.x, patrolX * 0.5f, Time.deltaTime * 0.5f), home.y, 0f);
         // home 的 y 保持战区，出招后便于复位
-        home.y = 3.2f;
+        home.y = MobileTuning.Active ? Mathf.Clamp((minY + maxY) * 0.5f, minY, maxY) : 3.2f;
     }
 
     IEnumerator PatternLoop()
@@ -135,10 +152,22 @@ public class ZodiacBossAI : MonoBehaviour
     IEnumerator ReturnToArena()
     {
         Vector3 from = transform.position;
-        Vector3 to = new Vector3(
-            Mathf.Clamp(from.x, -3.5f, 3.5f),
-            Mathf.Clamp(from.y, 2.4f, 3.6f),
-            0f);
+        Vector3 to;
+        if (MobileTuning.Active)
+        {
+            MobileTuning.CameraBounds(out float halfW, out float halfH);
+            to = new Vector3(
+                Mathf.Clamp(from.x, -halfW + 0.7f, halfW - 0.7f),
+                Mathf.Clamp(from.y, halfH * 0.42f, halfH - 1.05f),
+                0f);
+        }
+        else
+        {
+            to = new Vector3(
+                Mathf.Clamp(from.x, -3.5f, 3.5f),
+                Mathf.Clamp(from.y, 2.4f, 3.6f),
+                0f);
+        }
         float t = 0f;
         float dur = 0.45f;
         while (t < dur && transform != null)
@@ -148,7 +177,7 @@ public class ZodiacBossAI : MonoBehaviour
             yield return null;
         }
         if (transform != null) transform.position = to;
-        home = new Vector3(to.x, 3.2f, 0f);
+        home = new Vector3(to.x, MobileTuning.Active ? to.y : 3.2f, 0f);
         var rb = GetComponent<Rigidbody2D>();
         if (rb != null) rb.velocity = Vector2.zero;
     }
@@ -192,9 +221,6 @@ public class ZodiacBossAI : MonoBehaviour
         if (bulletPrefab == null) return null;
         var b = Object.Instantiate(bulletPrefab, pos, Quaternion.identity);
         b.SetActive(true);
-        b.transform.localScale = Vector3.one * Mathf.Max(0.55f, scale);
-        var rb = b.GetComponent<Rigidbody2D>();
-        if (rb != null) rb.velocity = vel;
         var sr = b.GetComponent<SpriteRenderer>();
         if (sr != null)
         {
@@ -202,6 +228,15 @@ public class ZodiacBossAI : MonoBehaviour
             if (zspr != null) sr.sprite = zspr;
             sr.color = color;
         }
+        b.transform.localScale = Vector3.one * MobileTuning.EnemyBulletScale(
+            sr != null ? sr.sprite : null, scale);
+        if (MobileTuning.Active && sr != null && sr.sprite != null)
+        {
+            var box = b.GetComponent<BoxCollider2D>();
+            if (box != null) box.size = sr.sprite.bounds.size * 0.62f;
+        }
+        var rb = b.GetComponent<Rigidbody2D>();
+        if (rb != null) rb.velocity = MobileTuning.ProjectileVelocity(vel);
         var eb = b.GetComponent<EnemyBullet>();
         if (eb != null)
         {
@@ -236,11 +271,13 @@ public class ZodiacBossAI : MonoBehaviour
         {
             Vector3 start = transform.position;
             Vector3 target = new Vector3(PlayerPos().x, Mathf.Max(-1f, PlayerPos().y + 1.4f), 0f);
+            if (MobileTuning.Active)
+                target.y = MobileTuning.Bottom(0.75f);
             // 先固定并显示冲锋航线，给玩家明确的横移反应时间。
             UltVfx.Bolt(start, target, new Color(1f, 0.35f, 0.25f, 0.75f), 8, 0.3f);
-            yield return new WaitForSeconds(0.35f);
+            yield return new WaitForSeconds(MobileTuning.Active ? 0.5f : 0.35f);
             // 冲锋拉长，降低突进速度
-            float chargeDur = 0.75f;
+            float chargeDur = MobileTuning.Active ? 1.05f : 0.75f;
             float t = 0f;
             while (t < chargeDur)
             {
@@ -272,7 +309,8 @@ public class ZodiacBossAI : MonoBehaviour
         {
             float dir = Random.value > 0.5f ? 1f : -1f;
             Vector3 start = transform.position;
-            Vector3 end = new Vector3(dir * 4.2f, home.y, 0f);
+            float edgeX = MobileTuning.Active ? MobileTuning.ClampX(dir * 99f, 0.7f) : dir * 4.2f;
+            Vector3 end = new Vector3(edgeX, home.y, 0f);
             float t = 0f;
             while (t < 0.55f)
             {
@@ -321,8 +359,10 @@ public class ZodiacBossAI : MonoBehaviour
             for (int i = 0; i < 5; i++)
             {
                 float y = home.y - 0.5f - i * 0.35f;
-                Fire(new Vector3(-5.2f, y, 0), new Vector2(4.5f, -1.2f), 0.4f, new Color(0.5f, 0.9f, 0.85f));
-                Fire(new Vector3(5.2f, y, 0), new Vector2(-4.5f, -1.2f), 0.4f, new Color(0.5f, 0.9f, 0.85f));
+                float left = MobileTuning.Active ? MobileTuning.ClampX(-99f, 0.25f) : -5.2f;
+                float right = MobileTuning.Active ? MobileTuning.ClampX(99f, 0.25f) : 5.2f;
+                Fire(new Vector3(left, y, 0), new Vector2(4.5f, -1.2f), 0.4f, new Color(0.5f, 0.9f, 0.85f));
+                Fire(new Vector3(right, y, 0), new Vector2(-4.5f, -1.2f), 0.4f, new Color(0.5f, 0.9f, 0.85f));
                 yield return new WaitForSeconds(0.08f);
             }
             // 硬壳：短时减速自身
@@ -361,10 +401,12 @@ public class ZodiacBossAI : MonoBehaviour
         for (int i = 0; i < (phase == 0 ? 8 : 12); i++)
         {
             float x = PlayerPos().x + Random.Range(-0.8f, 0.8f);
-            Fire(new Vector3(x, 5.5f, 0), Vector2.down * 6.5f, 0.32f, new Color(0.95f, 0.85f, 1f));
+            x = MobileTuning.ClampX(x, 0.3f);
+            float top = MobileTuning.Active ? MobileTuning.Top(0.15f) : 5.5f;
+            Fire(new Vector3(x, top, 0), Vector2.down * 6.5f, 0.32f, new Color(0.95f, 0.85f, 1f));
             if (phase > 0 && i % 3 == 0)
             {
-                Fire(new Vector3(x + 0.5f, 5.5f, 0), Vector2.down * 6f, 0.28f, new Color(0.85f, 0.75f, 1f));
+                Fire(new Vector3(MobileTuning.ClampX(x + 0.5f, 0.3f), top, 0), Vector2.down * 6f, 0.28f, new Color(0.85f, 0.75f, 1f));
             }
             yield return new WaitForSeconds(0.18f);
         }
@@ -378,7 +420,13 @@ public class ZodiacBossAI : MonoBehaviour
             bool left = round % 2 == 0;
             for (int i = 0; i < 6; i++)
             {
-                float x = left ? -4.5f + i * 0.3f : 4.5f - i * 0.3f;
+                float desktopX = left ? -4.5f + i * 0.3f : 4.5f - i * 0.3f;
+                float x = desktopX;
+                if (MobileTuning.Active)
+                {
+                    float edge = MobileTuning.ClampX(left ? -99f : 99f, 0.3f);
+                    x = edge + (left ? i : -i) * 0.3f;
+                }
                 Fire(new Vector3(x, home.y, 0), new Vector2(left ? 1.2f : -1.2f, -6f), 0.36f, new Color(0.7f, 0.95f, 0.75f));
                 yield return new WaitForSeconds(0.07f);
             }
@@ -434,8 +482,20 @@ public class ZodiacBossAI : MonoBehaviour
         }
         for (int i = 0; i < (phase == 0 ? 6 : 9); i++)
         {
-            float x = Random.Range(-4.5f, 4.5f);
-            Fire(new Vector3(x, 5.2f, 0), Vector2.down * 3.5f, 0.55f, new Color(0.55f, 0.7f, 0.55f), 1);
+            float x;
+            float top;
+            if (MobileTuning.Active)
+            {
+                MobileTuning.CameraBounds(out float halfW, out _);
+                x = Random.Range(-halfW + 0.35f, halfW - 0.35f);
+                top = MobileTuning.Top(0.15f);
+            }
+            else
+            {
+                x = Random.Range(-4.5f, 4.5f);
+                top = 5.2f;
+            }
+            Fire(new Vector3(x, top, 0), Vector2.down * 3.5f, 0.55f, new Color(0.55f, 0.7f, 0.55f), 1);
             yield return new WaitForSeconds(0.2f);
         }
         t = 0f;
@@ -476,7 +536,13 @@ public class ZodiacBossAI : MonoBehaviour
             {
                 t += Time.deltaTime;
                 float u = t / dur * Mathf.PI * 2f;
-                transform.position = c + new Vector3(Mathf.Sin(u) * 2.8f, Mathf.Sin(u * 2f) * 0.5f, 0f);
+                float swimWidth = 2.8f;
+                if (MobileTuning.Active)
+                {
+                    MobileTuning.CameraBounds(out float halfW, out _);
+                    swimWidth = Mathf.Min(swimWidth, Mathf.Max(0.7f, halfW - 0.75f));
+                }
+                transform.position = c + new Vector3(Mathf.Sin(u) * swimWidth, Mathf.Sin(u * 2f) * 0.5f, 0f);
                 if (t % 0.25f < Time.deltaTime)
                 {
                     Fire(transform.position + new Vector3(-0.5f, -0.4f, 0), Vector2.down * 5f, 0.3f, new Color(0.55f, 0.55f, 1f));

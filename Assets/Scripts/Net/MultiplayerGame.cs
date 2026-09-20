@@ -50,6 +50,7 @@ public class MultiplayerGame : MonoBehaviour
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
 
         panel = new GameObject("MpPanel");

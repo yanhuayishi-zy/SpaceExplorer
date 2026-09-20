@@ -242,7 +242,7 @@ public static class ShipMeta
         var move = player.GetComponent<PlayerMovement>();
         if (move != null)
         {
-            move.moveSpeed = def.moveSpeed;
+            move.moveSpeed = MobileTuning.MoveSpeed(def.moveSpeed);
         }
 
         var shoot = player.GetComponent<PlayerShooting>();

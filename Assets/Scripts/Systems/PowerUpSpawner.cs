@@ -34,8 +34,17 @@ public class PowerUpSpawner : MonoBehaviour
         // 随机位置
         float randomX = Random.Range(minX, maxX);
         Vector3 spawnPosition = new Vector3(randomX, spawnY, 0);
+        spawnPosition = MobileTuning.RandomPowerUpPoint(spawnPosition);
         
         // 生成道具
-        Instantiate(powerUpPrefab, spawnPosition, Quaternion.identity);
+        var spawned = Instantiate(powerUpPrefab, spawnPosition, Quaternion.identity);
+        if (MobileTuning.Active && spawned != null)
+        {
+            var sr = spawned.GetComponent<SpriteRenderer>();
+            spawned.transform.localScale = Vector3.one * MobileTuning.PowerUpScale(
+                sr != null ? sr.sprite : null, spawned.transform.localScale.x);
+            var pu = spawned.GetComponent<PowerUp>();
+            if (pu != null) pu.moveSpeed = MobileTuning.MoveSpeed(pu.moveSpeed);
+        }
     }
 }

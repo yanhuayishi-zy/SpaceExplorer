@@ -87,6 +87,7 @@ public class AutoIntroOutro : MonoBehaviour
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
 
         dim = CreateImage(canvasGo.transform, "Dim", Color.black);

@@ -342,7 +342,9 @@ public class StoryUI : MonoBehaviour
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
+        bool mobilePortrait = MobileTuning.Active && MobileTuning.Portrait;
 
         var dimGo = new GameObject("Dim");
         dimGo.transform.SetParent(canvasGo.transform, false);
@@ -351,7 +353,8 @@ public class StoryUI : MonoBehaviour
         dim.raycastTarget = true;
         Stretch(dim.rectTransform);
 
-        var title = MakeText(canvasGo.transform, "剧情", 20, new Vector2(0, 320), UiStyle.TextMuted);
+        var title = MakeText(canvasGo.transform, "剧情", mobilePortrait ? 28 : 20,
+            new Vector2(0, mobilePortrait ? 760 : 320), UiStyle.TextMuted);
 
         // 底部对白框
         var boxGo = new GameObject("DlgBox", typeof(RectTransform), typeof(Image));
@@ -363,8 +366,17 @@ public class StoryUI : MonoBehaviour
         boxRt.anchorMin = new Vector2(0.5f, 0f);
         boxRt.anchorMax = new Vector2(0.5f, 0f);
         boxRt.pivot = new Vector2(0.5f, 0f);
-        boxRt.anchoredPosition = new Vector2(0f, 48f);
-        boxRt.sizeDelta = new Vector2(980f, 260f);
+        boxRt.anchoredPosition = new Vector2(0f, mobilePortrait ? 72f : 48f);
+        if (mobilePortrait)
+        {
+            boxRt.anchorMin = new Vector2(0f, 0f);
+            boxRt.anchorMax = new Vector2(1f, 0f);
+            boxRt.sizeDelta = new Vector2(-72f, 430f);
+        }
+        else
+        {
+            boxRt.sizeDelta = new Vector2(980f, 260f);
+        }
 
         var edge = new GameObject("Edge", typeof(RectTransform), typeof(Image));
         edge.transform.SetParent(boxGo.transform, false);
@@ -378,21 +390,21 @@ public class StoryUI : MonoBehaviour
         ert.anchoredPosition = Vector2.zero;
         ert.sizeDelta = new Vector2(0f, 3f);
 
-        var speaker = MakeText(boxGo.transform, "", 30, Vector2.zero, UiStyle.Gold);
+        var speaker = MakeText(boxGo.transform, "", mobilePortrait ? 36 : 30, Vector2.zero, UiStyle.Gold);
         var sprRt = speaker.rectTransform;
         sprRt.anchorMin = sprRt.anchorMax = new Vector2(0.5f, 1f);
         sprRt.pivot = new Vector2(0.5f, 1f);
-        sprRt.anchoredPosition = new Vector2(-320f, -12f);
-        sprRt.sizeDelta = new Vector2(280f, 40f);
+        sprRt.anchoredPosition = new Vector2(mobilePortrait ? -300f : -320f, mobilePortrait ? -20f : -12f);
+        sprRt.sizeDelta = new Vector2(mobilePortrait ? 320f : 280f, mobilePortrait ? 52f : 40f);
         speaker.alignment = TextAnchor.MiddleLeft;
         StoryUI.lastSpeaker = speaker;
 
-        var body = MakeText(boxGo.transform, "", 28, Vector2.zero, UiStyle.TextPrimary);
+        var body = MakeText(boxGo.transform, "", mobilePortrait ? 34 : 28, Vector2.zero, UiStyle.TextPrimary);
         var brt = body.rectTransform;
         brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 1f);
         brt.pivot = new Vector2(0.5f, 1f);
-        brt.anchoredPosition = new Vector2(0f, -64f);
-        brt.sizeDelta = new Vector2(880f, 160f);
+        brt.anchoredPosition = new Vector2(0f, mobilePortrait ? -92f : -64f);
+        brt.sizeDelta = new Vector2(mobilePortrait ? 900f : 880f, mobilePortrait ? 290f : 160f);
         body.verticalOverflow = VerticalWrapMode.Overflow;
         body.alignment = TextAnchor.UpperLeft;
 
@@ -405,15 +417,15 @@ public class StoryUI : MonoBehaviour
         var prt = port.rectTransform;
         prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f);
         prt.pivot = new Vector2(0.5f, 0f);
-        prt.anchoredPosition = new Vector2(-340f, 320f);
-        prt.sizeDelta = new Vector2(280f, 320f);
+        prt.anchoredPosition = new Vector2(mobilePortrait ? -285f : -340f, mobilePortrait ? 530f : 320f);
+        prt.sizeDelta = new Vector2(mobilePortrait ? 340f : 280f, mobilePortrait ? 390f : 320f);
 
-        var cont = MakeText(canvasGo.transform, "点击或轻触继续", 18,
-            new Vector2(380f, 0), UiStyle.TextMuted);
+        var cont = MakeText(canvasGo.transform, "点击或轻触继续", mobilePortrait ? 24 : 18,
+            new Vector2(mobilePortrait ? 0f : 380f, 0), UiStyle.TextMuted);
         var crt = cont.rectTransform;
         crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0f);
         crt.pivot = new Vector2(0.5f, 0f);
-        crt.anchoredPosition = new Vector2(340f, 28f);
+        crt.anchoredPosition = new Vector2(mobilePortrait ? 0f : 340f, mobilePortrait ? 18f : 28f);
 
         bool skip = false;
         bool skipRequested = false;
@@ -427,9 +439,9 @@ public class StoryUI : MonoBehaviour
         var skipRt = (RectTransform)skipGo.transform;
         skipRt.anchorMin = skipRt.anchorMax = new Vector2(1f, 1f);
         skipRt.pivot = new Vector2(1f, 1f);
-        skipRt.anchoredPosition = new Vector2(-48f, -40f);
-        skipRt.sizeDelta = new Vector2(132f, 52f);
-        var skipLabel = MakeText(skipGo.transform, "跳过", 20, Vector2.zero, UiStyle.TextSecondary);
+        skipRt.anchoredPosition = new Vector2(mobilePortrait ? -28f : -48f, mobilePortrait ? -58f : -40f);
+        skipRt.sizeDelta = new Vector2(mobilePortrait ? 168f : 132f, mobilePortrait ? 72f : 52f);
+        var skipLabel = MakeText(skipGo.transform, "跳过", mobilePortrait ? 26 : 20, Vector2.zero, UiStyle.TextSecondary);
         Stretch(skipLabel.rectTransform);
 
         for (int i = 0; i < beats.Length && !skip; i++)

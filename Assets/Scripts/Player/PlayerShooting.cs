@@ -78,7 +78,7 @@ public class PlayerShooting : MonoBehaviour
         // 恢复机体基础移速
         var mv = GetComponent<PlayerMovement>();
         if (mv != null && ShipMeta.Current != null)
-            mv.moveSpeed = ShipMeta.Current.moveSpeed + GearMeta.Collect().moveAdd;
+            mv.moveSpeed = MobileTuning.MoveSpeed(ShipMeta.Current.moveSpeed + GearMeta.Collect().moveAdd);
     }
 
     /// 无尽：应用引擎强化后的移速
@@ -90,7 +90,7 @@ public class PlayerShooting : MonoBehaviour
             + GearMeta.Collect().moveAdd;
         var timed = GetComponent<TimedPowerUpEffects>();
         float temporaryBonus = timed != null ? timed.ActiveSpeedBonus : 0f;
-        mv.moveSpeed = baseSpd * speedMul + temporaryBonus;
+        mv.moveSpeed = MobileTuning.MoveSpeed(baseSpd * speedMul + temporaryBonus);
     }
 
     public bool IsSpecialReady() => charge >= chargeNeed && !locked;
@@ -356,6 +356,13 @@ public class PlayerShooting : MonoBehaviour
         {
             if (godBulletSprite != null) sr.sprite = godBulletSprite;
             sr.color = color;
+            if (MobileTuning.Active)
+            {
+                float mobileScale = MobileTuning.PlayerBulletScale(sr.sprite, scale);
+                b.transform.localScale = new Vector3(mobileScale, mobileScale * 1.15f, 1f);
+                var box = b.GetComponent<BoxCollider2D>();
+                if (box != null) box.size = sr.sprite.bounds.size * 0.58f;
+            }
         }
         var sc = b.GetComponent<Bullet>();
         if (sc != null) sc.damage = dmg;

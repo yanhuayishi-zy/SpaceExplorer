@@ -188,6 +188,7 @@ public class AchievementToasts : MonoBehaviour
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
 
         var bgGo = new GameObject("Bg");
         bgGo.transform.SetParent(canvasGo.transform, false);

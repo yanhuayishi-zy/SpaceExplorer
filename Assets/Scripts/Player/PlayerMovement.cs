@@ -25,6 +25,7 @@ public class PlayerMovement : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        if (MobileTuning.Active) slideLerp = Mathf.Min(slideLerp, 9.5f);
         FitBoundsToCamera();
     }
 
@@ -34,10 +35,23 @@ public class PlayerMovement : MonoBehaviour
         if (cam == null || !cam.orthographic) return;
         float halfH = cam.orthographicSize;
         float halfW = halfH * cam.aspect;
-        minX = -halfW + 0.45f;
-        maxX = halfW - 0.45f;
-        minY = -halfH + 0.45f;
-        maxY = halfH - 0.45f;
+        if (MobileTuning.Active)
+        {
+            var sr = GetComponent<SpriteRenderer>();
+            float padX = sr != null ? Mathf.Max(0.45f, sr.bounds.extents.x * 0.75f) : 0.5f;
+            float padY = sr != null ? Mathf.Max(0.55f, sr.bounds.extents.y * 0.75f) : 0.6f;
+            minX = -halfW + padX;
+            maxX = halfW - padX;
+            minY = -halfH + Mathf.Max(0.75f, padY);
+            maxY = halfH - Mathf.Max(0.8f, padY);
+        }
+        else
+        {
+            minX = -halfW + 0.45f;
+            maxX = halfW - 0.45f;
+            minY = -halfH + 0.45f;
+            maxY = halfH - 0.45f;
+        }
     }
 
     void Update()
@@ -129,7 +143,10 @@ public class PlayerMovement : MonoBehaviour
                     Vector3 wp = ScreenToWorld(t.position, cam);
                     Vector3 target = wp + (Vector3)slideOffset;
                     Vector3 prev = transform.position;
-                    transform.position = Vector3.Lerp(prev, target, Time.deltaTime * slideLerp);
+                    float follow = MobileTuning.Active
+                        ? 1f - Mathf.Exp(-slideLerp * Time.deltaTime)
+                        : Time.deltaTime * slideLerp;
+                    transform.position = Vector3.Lerp(prev, target, follow);
                     Vector3 d = (transform.position - prev) / Mathf.Max(Time.deltaTime, 0.0001f);
                     moveInput = Vector2.ClampMagnitude(new Vector2(d.x, d.y) / Mathf.Max(moveSpeed, 1f), 1f);
                     return true;
@@ -149,7 +166,10 @@ public class PlayerMovement : MonoBehaviour
             Vector3 wp = ScreenToWorld(Input.mousePosition, cam);
             Vector3 target = wp + (Vector3)slideOffset;
             Vector3 prev = transform.position;
-            transform.position = Vector3.Lerp(prev, target, Time.deltaTime * slideLerp);
+            float follow = MobileTuning.Active
+                ? 1f - Mathf.Exp(-slideLerp * Time.deltaTime)
+                : Time.deltaTime * slideLerp;
+            transform.position = Vector3.Lerp(prev, target, follow);
             Vector3 d = (transform.position - prev) / Mathf.Max(Time.deltaTime, 0.0001f);
             moveInput = Vector2.ClampMagnitude(new Vector2(d.x, d.y) / Mathf.Max(moveSpeed, 1f), 1f);
             return true;

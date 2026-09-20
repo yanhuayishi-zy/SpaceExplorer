@@ -43,6 +43,7 @@ public class BossBreakPhase : MonoBehaviour
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
         barRoot.transform.SetParent(canvasGo.transform, false);
 
         var bg = new GameObject("Bg");
@@ -53,8 +54,8 @@ public class BossBreakPhase : MonoBehaviour
         var rt = bimg.rectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = new Vector2(0, -88f);
-        rt.sizeDelta = new Vector2(420f, 18f);
+        rt.anchoredPosition = MobileTuning.Active ? new Vector2(0, -246f) : new Vector2(0, -88f);
+        rt.sizeDelta = MobileTuning.Active ? new Vector2(760f, 24f) : new Vector2(420f, 18f);
 
         var fillGo = new GameObject("Fill");
         fillGo.transform.SetParent(bg.transform, false);
@@ -75,7 +76,7 @@ public class BossBreakPhase : MonoBehaviour
         labelGo.transform.SetParent(barRoot.transform, false);
         var text = labelGo.AddComponent<Text>();
         text.font = PixelUi.Font;
-        text.fontSize = 14;
+        text.fontSize = MobileTuning.Active ? 22 : 14;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = new Color(1f, 0.9f, 0.5f, 0.9f);
         text.text = "Boss 护盾 · 攻击以破防";
@@ -83,8 +84,8 @@ public class BossBreakPhase : MonoBehaviour
         var trt = text.rectTransform;
         trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 1f);
         trt.pivot = new Vector2(0.5f, 1f);
-        trt.anchoredPosition = new Vector2(0, -72f);
-        trt.sizeDelta = new Vector2(420f, 20f);
+        trt.anchoredPosition = MobileTuning.Active ? new Vector2(0, -214f) : new Vector2(0, -72f);
+        trt.sizeDelta = MobileTuning.Active ? new Vector2(760f, 28f) : new Vector2(420f, 20f);
 
         barRoot.SetActive(false);
     }

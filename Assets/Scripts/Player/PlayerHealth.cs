@@ -75,6 +75,7 @@ public class PlayerHealth : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         scaler.matchWidthOrHeight = 1f;
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
 
         // 底条
@@ -87,8 +88,8 @@ public class PlayerHealth : MonoBehaviour
         bgRt.anchorMin = new Vector2(0f, 1f);
         bgRt.anchorMax = new Vector2(0f, 1f);
         bgRt.pivot = new Vector2(0f, 1f);
-        bgRt.anchoredPosition = new Vector2(20f, -88f);
-        bgRt.sizeDelta = new Vector2(320f, 36f);
+        bgRt.anchoredPosition = MobileTuning.Active ? new Vector2(28f, -112f) : new Vector2(20f, -88f);
+        bgRt.sizeDelta = MobileTuning.Active ? new Vector2(480f, 48f) : new Vector2(320f, 36f);
 
         // 边框
         var frame = new GameObject("Frame");
@@ -126,7 +127,7 @@ public class PlayerHealth : MonoBehaviour
         txtGo.transform.SetParent(bgGo.transform, false);
         var txt = txtGo.AddComponent<Text>();
         txt.font = PixelUi.Font;
-        txt.fontSize = 22;
+        txt.fontSize = MobileTuning.Active ? 26 : 22;
         txt.alignment = TextAnchor.MiddleCenter;
         txt.color = Color.white;
         txt.raycastTarget = false;
@@ -157,6 +158,13 @@ public class PlayerHealth : MonoBehaviour
     public void TakeDamage(int damage)
     {
         if (isInvincible) return;
+
+        // 移动端冲撞时可能在同一物理帧收到本体与弹幕回调，先锁定无敌帧再结算伤害。
+        if (MobileTuning.Active)
+        {
+            isInvincible = true;
+            invincibilityTimer = invincibilityDuration;
+        }
 
         currentHealth -= damage;
         ComboBombSystem.NotifyPlayerHit();

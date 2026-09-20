@@ -83,6 +83,7 @@ public class MobileGameShell : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         scaler.matchWidthOrHeight = 1f;
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
 
         // 确保有 EventSystem，否则按钮点不动
@@ -1550,6 +1551,7 @@ public class MobileGameShell : MonoBehaviour
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
 
         var root = new GameObject("GameOverBoard");
@@ -1865,8 +1867,10 @@ public class MobileGameShell : MonoBehaviour
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = pos;
-        rt.sizeDelta = new Vector2(w, h);
-        var text = MakeText(go.transform, label, 28, Vector2.zero, Color.white);
+        rt.sizeDelta = MobileTuning.Active
+            ? new Vector2(Mathf.Max(w, 300f), Mathf.Max(h, 82f))
+            : new Vector2(w, h);
+        var text = MakeText(go.transform, label, MobileTuning.Active ? 30 : 28, Vector2.zero, Color.white);
         Stretch(text.rectTransform);
         return go;
     }
@@ -1891,8 +1895,8 @@ public class MobileGameShell : MonoBehaviour
             rt.pivot = new Vector2(1f, 1f);
         }
         rt.anchoredPosition = pos;
-        rt.sizeDelta = new Vector2(110, 48);
-        var text = MakeText(go.transform, label, 20, Vector2.zero, Color.white);
+        rt.sizeDelta = MobileTuning.Active ? new Vector2(156, 66) : new Vector2(110, 48);
+        var text = MakeText(go.transform, label, MobileTuning.Active ? 24 : 20, Vector2.zero, Color.white);
         Stretch(text.rectTransform);
     }
 }

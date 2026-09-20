@@ -280,6 +280,7 @@ public static class EndlessRoguelike
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
         canvasGo.AddComponent<GraphicRaycaster>();
 
         var dimGo = new GameObject("Dim");
@@ -295,7 +296,8 @@ public static class EndlessRoguelike
         for (int i = 0; i < options.Count; i++)
         {
             var opt = options[i];
-            float x = (i - (options.Count - 1) * 0.5f) * 400f;
+            float xSpacing = MobileTuning.Active && MobileTuning.Portrait ? 330f : 400f;
+            float x = (i - (options.Count - 1) * 0.5f) * xSpacing;
             var card = new GameObject("Opt" + i);
             card.transform.SetParent(canvasGo.transform, false);
             var img = card.AddComponent<Image>();
@@ -303,7 +305,9 @@ public static class EndlessRoguelike
             var rt = img.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = new Vector2(x, -30f);
-            rt.sizeDelta = new Vector2(360f, 420f);
+            rt.sizeDelta = MobileTuning.Active && MobileTuning.Portrait
+                ? new Vector2(300f, 460f)
+                : new Vector2(360f, 420f);
 
             // 顶色条
             var bar = new GameObject("Bar");
@@ -429,6 +433,7 @@ public class RogueUpHud : MonoBehaviour
         var scaler = cgo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
 
         var rootGo = new GameObject("Chips");
         rootGo.transform.SetParent(cgo.transform, false);

@@ -41,6 +41,7 @@ public class ComboBombSystem : MonoBehaviour
             var scaler = cgo.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
+            MobileTuning.ConfigureCanvas(scaler);
             cgo.AddComponent<GraphicRaycaster>();
             parent = cgo.transform;
         }

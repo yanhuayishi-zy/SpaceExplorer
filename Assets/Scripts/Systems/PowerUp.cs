@@ -36,7 +36,8 @@ public class PowerUp : MonoBehaviour
         bobPhase += Time.deltaTime * 4f;
         float s = 1f + 0.08f * Mathf.Sin(bobPhase);
         transform.localScale = baseScale * s;
-        if (transform.position.y < -6.5f)
+        float despawnY = MobileTuning.Active ? MobileTuning.Bottom(0.8f) : -6.5f;
+        if (transform.position.y < despawnY)
         {
             Destroy(gameObject);
         }

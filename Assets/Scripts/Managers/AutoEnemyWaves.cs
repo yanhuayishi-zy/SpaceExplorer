@@ -145,14 +145,20 @@ public class AutoEnemyWaves : MonoBehaviour
 
     void SpawnEnemy(Sprite sprite, int hp, float speed, float scale, int score, bool canShoot)
     {
+        bool bossSized = scale >= 1.3f;
         var go = new GameObject("Enemy_Auto");
         go.tag = "Enemy";
-        go.transform.position = new Vector3(Random.Range(-4.5f, 4.5f), 6.5f, 0f);
+        go.transform.position = MobileTuning.EnemySpawnPoint(
+            new Vector3(Random.Range(-4.5f, 4.5f), 6.5f, 0f), 0.55f);
         go.transform.localScale = Vector3.one * scale;
 
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = sprite;
         sr.sortingOrder = 5;
+        if (MobileTuning.Active)
+            go.transform.localScale = Vector3.one * (bossSized
+                ? MobileTuning.BossScale(sprite, scale)
+                : MobileTuning.MinionScale(sprite, scale, scale >= 0.9f));
 
         var rb = go.AddComponent<Rigidbody2D>();
         rb.gravityScale = 0f;
@@ -160,13 +166,15 @@ public class AutoEnemyWaves : MonoBehaviour
 
         var col = go.AddComponent<BoxCollider2D>();
         col.isTrigger = true;
-        col.size = new Vector2(0.85f, 0.85f);
+        col.size = MobileTuning.Active && sprite != null
+            ? (Vector2)sprite.bounds.size * (bossSized ? 0.52f : 0.56f)
+            : new Vector2(0.85f, 0.85f);
 
         var enemy = go.AddComponent<Enemy>();
         enemy.health = hp;
         enemy.damage = 16;
         enemy.scoreValue = score;
-        enemy.moveSpeed = speed;
+        enemy.moveSpeed = MobileTuning.MoveSpeed(speed);
         enemy.canShoot = canShoot;
         enemy.movementPattern = hp >= 3 ? Enemy.MovementPattern.Sine : Enemy.MovementPattern.Straight;
         enemy.amplitude = 1.5f;

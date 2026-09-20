@@ -144,13 +144,18 @@ public class ZodiacGameFlow : MonoBehaviour
         {
             var spr = ShipMeta.LoadShipSprite(ShipMeta.Current.id);
             if (spr != null) sr2.sprite = spr;
+            if (MobileTuning.Active)
+                player.transform.localScale = Vector3.one * MobileTuning.PlayerScale(sr2.sprite, player.transform.localScale.x);
         }
         if (sr2 != null) sr2.sortingOrder = 10;
 
         var col = player.GetComponent<BoxCollider2D>();
         if (col == null) col = player.AddComponent<BoxCollider2D>();
         col.isTrigger = true;
-        if (col.size.x < 0.2f || col.size.y < 0.2f) col.size = new Vector2(0.7f, 0.7f);
+        if (MobileTuning.Active && sr2 != null && sr2.sprite != null)
+            col.size = (Vector2)sr2.sprite.bounds.size * 0.42f;
+        else if (col.size.x < 0.2f || col.size.y < 0.2f)
+            col.size = new Vector2(0.7f, 0.7f);
 
         if (player.GetComponent<PlayerMovement>() == null) player.AddComponent<PlayerMovement>();
         if (player.GetComponent<PlayerShooting>() == null) player.AddComponent<PlayerShooting>();
@@ -371,6 +376,7 @@ public class ZodiacGameFlow : MonoBehaviour
         var scaler = go.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(scaler);
 
         // 底衬，避免和星空糊在一起
         var card = new GameObject("Card", typeof(RectTransform), typeof(Image));
@@ -396,6 +402,7 @@ public class ZodiacGameFlow : MonoBehaviour
         img.sortingOrder = 160;
         root.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         root.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1920, 1080);
+        MobileTuning.ConfigureCanvas(root.GetComponent<CanvasScaler>());
         root.AddComponent<GraphicRaycaster>();
         var bgGo = new GameObject("Dim");
         bgGo.transform.SetParent(root.transform, false);
@@ -479,7 +486,7 @@ public class ZodiacGameFlow : MonoBehaviour
             if (IsDead) yield break;
             bool mid = i > 0 && i % 4 == 3;
             Sprite spr = minionSpr != null ? minionSpr : (mid ? mediumSprite : smallSprite);
-            float scale = mid ? 1.05f : 0.78f;
+            float scale = MobileTuning.MinionScale(spr, mid ? 1.05f : 0.78f, mid);
             int useHp = mid ? hp + 2 : hp;
             SpawnMinion(def, spr, useHp, speed * (mid ? 0.75f : 1f), scale, mid ? GameBalance.ScoreMid : GameBalance.ScoreSmall,
                 mid || i % 3 == 2);
@@ -512,7 +519,7 @@ public class ZodiacGameFlow : MonoBehaviour
             default: // 右侧翼
                 x = 5.0f; y = Random.Range(3.5f, 5.0f); break;
         }
-        go.transform.position = new Vector3(x, y, 0f);
+        go.transform.position = MobileTuning.EnemySpawnPoint(new Vector3(x, y, 0f), 0.55f);
         go.transform.localScale = Vector3.one * scale;
 
         var sr = go.AddComponent<SpriteRenderer>();
@@ -526,7 +533,9 @@ public class ZodiacGameFlow : MonoBehaviour
 
         var col = go.AddComponent<BoxCollider2D>();
         col.isTrigger = true;
-        col.size = new Vector2(0.8f, 0.8f);
+        col.size = MobileTuning.Active && sprite != null
+            ? (Vector2)sprite.bounds.size * 0.56f
+            : new Vector2(0.8f, 0.8f);
 
         var enemy = go.AddComponent<Enemy>();
         enemy.health = hp;
@@ -540,7 +549,7 @@ public class ZodiacGameFlow : MonoBehaviour
             enemy.damage = GameBalance.CampaignMinionDamage(def != null ? def.index : 1);
         }
         enemy.scoreValue = score;
-        enemy.moveSpeed = speed * Random.Range(0.9f, 1.15f);
+        enemy.moveSpeed = MobileTuning.MoveSpeed(speed * Random.Range(0.9f, 1.15f));
         enemy.canShoot = canShoot;
 
         // 侧翼更偏锯齿/正弦，顶部偏直线
@@ -560,6 +569,11 @@ public class ZodiacGameFlow : MonoBehaviour
             enemy.amplitude = lane == 1 ? 1.6f : 2.2f;
         }
         enemy.frequency = Random.Range(1.5f, 2.4f);
+        if (MobileTuning.Active)
+        {
+            MobileTuning.CameraBounds(out float halfW, out _);
+            enemy.amplitude = Mathf.Min(enemy.amplitude, Mathf.Max(0.65f, halfW * 0.55f));
+        }
 
         if (canShoot)
         {
@@ -584,13 +598,13 @@ public class ZodiacGameFlow : MonoBehaviour
 
         var go = new GameObject(def.key + "_Boss");
         go.tag = "Enemy";
-        go.transform.position = new Vector3(0f, 6.8f, 0f);
-        go.transform.localScale = Vector3.one * def.bossScale;
+        go.transform.position = MobileTuning.BossSpawnPoint(new Vector3(0f, 6.8f, 0f));
 
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = LoadZodiacSprite(def.key, true);
         sr.color = Color.white;
         sr.sortingOrder = 6;
+        go.transform.localScale = Vector3.one * MobileTuning.BossScale(sr.sprite, def.bossScale);
 
         var rb = go.AddComponent<Rigidbody2D>();
         rb.gravityScale = 0f;
@@ -598,7 +612,9 @@ public class ZodiacGameFlow : MonoBehaviour
 
         var col = go.AddComponent<BoxCollider2D>();
         col.isTrigger = true;
-        col.size = new Vector2(1.2f, 1.1f);
+        col.size = MobileTuning.Active && sr.sprite != null
+            ? new Vector2(sr.sprite.bounds.size.x * 0.54f, sr.sprite.bounds.size.y * 0.5f)
+            : new Vector2(1.2f, 1.1f);
 
         var enemy = go.AddComponent<Enemy>();
         enemy.health = hp;
@@ -720,7 +736,9 @@ public class ZodiacGameFlow : MonoBehaviour
         var rt = text.rectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = pos;
-        rt.sizeDelta = new Vector2(1000, 90);
+        rt.sizeDelta = MobileTuning.Active && MobileTuning.Portrait
+            ? new Vector2(920, 110)
+            : new Vector2(1000, 90);
         return text;
     }
 
@@ -736,8 +754,8 @@ public class ZodiacGameFlow : MonoBehaviour
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = pos;
-        rt.sizeDelta = new Vector2(200, 56);
-        MakeBannerText(go.transform, label, 24, Vector2.zero, Color.white);
+        rt.sizeDelta = MobileTuning.Active ? new Vector2(260, 76) : new Vector2(200, 56);
+        MakeBannerText(go.transform, label, MobileTuning.Active ? 28 : 24, Vector2.zero, Color.white);
     }
 }
 

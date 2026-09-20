@@ -37,14 +37,15 @@ public class BossBarUI : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         scaler.matchWidthOrHeight = 1f;
+        MobileTuning.ConfigureCanvas(scaler);
 
         root = new GameObject("Root");
         root.transform.SetParent(cgo.transform, false);
         var rrt = root.AddComponent<RectTransform>();
         rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 1f);
         rrt.pivot = new Vector2(0.5f, 1f);
-        rrt.anchoredPosition = new Vector2(0, -92f);
-        rrt.sizeDelta = new Vector2(720f, 56f);
+        rrt.anchoredPosition = MobileTuning.Active ? new Vector2(0, -164f) : new Vector2(0, -92f);
+        rrt.sizeDelta = MobileTuning.Active ? new Vector2(880f, 72f) : new Vector2(720f, 56f);
 
         var bg = new GameObject("Bg", typeof(RectTransform), typeof(Image));
         bg.transform.SetParent(root.transform, false);
@@ -56,7 +57,7 @@ public class BossBarUI : MonoBehaviour
         brt.anchorMax = new Vector2(1f, 0f);
         brt.pivot = new Vector2(0.5f, 0f);
         brt.anchoredPosition = new Vector2(0, 0);
-        brt.sizeDelta = new Vector2(0f, 22f);
+        brt.sizeDelta = new Vector2(0f, MobileTuning.Active ? 30f : 22f);
 
         var fillGo = new GameObject("Fill");
         fillGo.transform.SetParent(bg.transform, false);
@@ -73,8 +74,10 @@ public class BossBarUI : MonoBehaviour
         frt.offsetMin = new Vector2(2f, 2f);
         frt.offsetMax = new Vector2(-2f, -2f);
 
-        nameText = MakeText(root.transform, "", 24, new Vector2(-220, 28), TextAnchor.MiddleLeft, UiStyle.Gold);
-        hpText = MakeText(root.transform, "", 20, new Vector2(220, 28), TextAnchor.MiddleRight, UiStyle.TextSecondary);
+        nameText = MakeText(root.transform, "", MobileTuning.Active ? 28 : 24,
+            new Vector2(MobileTuning.Active ? -260 : -220, MobileTuning.Active ? 38 : 28), TextAnchor.MiddleLeft, UiStyle.Gold);
+        hpText = MakeText(root.transform, "", MobileTuning.Active ? 24 : 20,
+            new Vector2(MobileTuning.Active ? 260 : 220, MobileTuning.Active ? 38 : 28), TextAnchor.MiddleRight, UiStyle.TextSecondary);
 
         root.SetActive(false);
     }

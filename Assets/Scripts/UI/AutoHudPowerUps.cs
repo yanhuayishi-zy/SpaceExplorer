@@ -188,7 +188,9 @@ public class AutoHudPowerUps : MonoBehaviour
             return;
         }
 
-        CreatePowerUp(pick.sprite, pick.type, pick.value, new Vector3(Random.Range(-4.2f, 4.2f), 6.2f, 0f), 0.55f, 1.6f, 6f);
+        CreatePowerUp(pick.sprite, pick.type, pick.value,
+            MobileTuning.RandomPowerUpPoint(new Vector3(Random.Range(-4.2f, 4.2f), 6.2f, 0f)),
+            MobileTuning.PowerUpScale(pick.sprite, 0.55f), MobileTuning.MoveSpeed(1.6f), 6f);
 
         if (powerText != null)
         {
@@ -230,7 +232,10 @@ public class AutoHudPowerUps : MonoBehaviour
             type = PowerUp.PowerUpType.Spread;
         }
 
-        CreatePowerUp(spr, type, value, worldPos, premium ? 0.7f : 0.5f, premium ? 1.2f : 1.5f, dur);
+        worldPos = MobileTuning.PowerUpPoint(worldPos);
+        CreatePowerUp(spr, type, value, worldPos,
+            MobileTuning.PowerUpScale(spr, premium ? 0.7f : 0.5f, premium),
+            MobileTuning.MoveSpeed(premium ? 1.2f : 1.5f), dur);
         GameFx.Pickup(worldPos, new Color(1f, 0.9f, 0.4f));
     }
 
@@ -248,7 +253,9 @@ public class AutoHudPowerUps : MonoBehaviour
 
         var col = go.AddComponent<CircleCollider2D>();
         col.isTrigger = true;
-        col.radius = 0.45f;
+        col.radius = MobileTuning.Active && sprite != null
+            ? Mathf.Max(0.45f, sprite.bounds.extents.x * 0.72f)
+            : 0.45f;
 
         var pu = go.AddComponent<PowerUp>();
         pu.powerUpType = type;

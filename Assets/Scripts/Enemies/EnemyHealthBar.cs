@@ -11,6 +11,7 @@ public class EnemyHealthBar : MonoBehaviour
     Transform fill;
     SpriteRenderer fillSr;
     SpriteRenderer bgSr;
+    Transform bg;
     static Sprite whiteSprite;
 
     public void Setup(int hp)
@@ -35,6 +36,7 @@ public class EnemyHealthBar : MonoBehaviour
 
         var bgGo = new GameObject("HP_BG");
         bgGo.transform.SetParent(transform, false);
+        bg = bgGo.transform;
         bgGo.transform.localPosition = (Vector3)offset;
         bgGo.transform.localScale = new Vector3(size.x, size.y, 1f);
         bgSr = bgGo.AddComponent<SpriteRenderer>();
@@ -57,6 +59,19 @@ public class EnemyHealthBar : MonoBehaviour
     {
         // 始终朝上，不跟着旋转
         transform.rotation = Quaternion.identity;
+        if (!MobileTuning.Active || bg == null) return;
+
+        bool boss = GetComponent<ZodiacBossAI>() != null || gameObject.name.Contains("Boss");
+        var sr = GetComponent<SpriteRenderer>();
+        float modelScaleX = Mathf.Max(0.05f, Mathf.Abs(transform.lossyScale.x));
+        float modelScaleY = Mathf.Max(0.05f, Mathf.Abs(transform.lossyScale.y));
+        float worldWidth = boss ? 2.0f : 0.86f;
+        MobileTuning.CameraBounds(out float halfW, out _);
+        worldWidth = Mathf.Min(worldWidth, halfW * (boss ? 1.25f : 0.55f));
+        float worldHeight = boss ? 0.17f : 0.11f;
+        bg.localScale = new Vector3(worldWidth / modelScaleX, worldHeight / modelScaleY, 1f);
+        float spriteTop = sr != null && sr.sprite != null ? sr.sprite.bounds.extents.y : 0.7f;
+        bg.localPosition = new Vector3(0f, spriteTop + 0.16f / modelScaleY, 0f);
     }
 
     public void ApplyDamage(int dmg)

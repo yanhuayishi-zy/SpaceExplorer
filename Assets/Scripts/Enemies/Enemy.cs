@@ -50,14 +50,23 @@ public class Enemy : MonoBehaviour
         }
         
         // 检查是否离开屏幕
-        if (transform.position.y < -6f)
+        float despawnY = MobileTuning.Active ? MobileTuning.Bottom(1.1f) : -6f;
+        if (transform.position.y < despawnY)
         {
-            Destroy(gameObject);
+            // 移动端白羊等 Boss 会主动冲到屏幕底端，不能套用普通小怪的出屏销毁规则。
+            bool mobileZodiacBoss = MobileTuning.Active && GetComponent<ZodiacBossAI>() != null;
+            if (!mobileZodiacBoss) Destroy(gameObject);
         }
     }
     
     void Move()
     {
+        float xLimit = 5.2f;
+        if (MobileTuning.Active)
+        {
+            MobileTuning.CameraBounds(out float halfW, out _);
+            xLimit = Mathf.Max(0.8f, halfW - 0.45f);
+        }
         switch (movementPattern)
         {
             case MovementPattern.Straight:
@@ -65,13 +74,13 @@ public class Enemy : MonoBehaviour
                 break;
             case MovementPattern.Sine:
                 float newX = startX + Mathf.Sin((Time.time - startTime) * frequency) * amplitude;
-                newX = Mathf.Clamp(newX, -5.2f, 5.2f);
+                newX = Mathf.Clamp(newX, -xLimit, xLimit);
                 transform.position = new Vector3(newX, transform.position.y - moveSpeed * Time.deltaTime, 0);
                 break;
             case MovementPattern.Zigzag:
                 float zigzagX = startX + Mathf.PingPong(
                     (Time.time - startTime) * frequency + amplitude, amplitude * 2) - amplitude;
-                zigzagX = Mathf.Clamp(zigzagX, -5.2f, 5.2f);
+                zigzagX = Mathf.Clamp(zigzagX, -xLimit, xLimit);
                 transform.position = new Vector3(zigzagX, transform.position.y - moveSpeed * Time.deltaTime, 0);
                 break;
         }
@@ -111,6 +120,16 @@ public class Enemy : MonoBehaviour
     {
         GameObject bullet = Instantiate(bulletPrefab, pos, Quaternion.identity);
         bullet.SetActive(true);
+        if (MobileTuning.Active)
+        {
+            var sr = bullet.GetComponent<SpriteRenderer>();
+            bullet.transform.localScale = Vector3.one * MobileTuning.EnemyBulletScale(
+                sr != null ? sr.sprite : null, bullet.transform.localScale.x);
+            var box = bullet.GetComponent<BoxCollider2D>();
+            if (box != null && sr != null && sr.sprite != null)
+                box.size = sr.sprite.bounds.size * 0.62f;
+            vel = MobileTuning.ProjectileVelocity(vel);
+        }
         Rigidbody2D rb = bullet.GetComponent<Rigidbody2D>();
         if (rb != null) rb.velocity = vel;
         var eb = bullet.GetComponent<EnemyBullet>();
@@ -256,7 +275,11 @@ public class Enemy : MonoBehaviour
             PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
-                playerHealth.TakeDamage(damage);
+                bool isZodiacBoss = GetComponent<ZodiacBossAI>() != null;
+                int contactDamage = isZodiacBoss
+                    ? MobileTuning.BossContactDamage(damage, playerHealth.maxHealth)
+                    : damage;
+                playerHealth.TakeDamage(contactDamage);
             }
             // Boss 碰撞只造成接触伤害，不能因对象被销毁而被流程误判为击杀。
             if (GetComponent<ZodiacBossAI>() == null)

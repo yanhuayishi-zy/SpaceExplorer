@@ -216,7 +216,7 @@ public static class GearMeta
         if (move != null)
         {
             // 以战机基准再叠加
-            move.moveSpeed += b.moveAdd;
+            move.moveSpeed += MobileTuning.MoveSpeed(b.moveAdd);
         }
 
         var shoot = player.GetComponent<PlayerShooting>();
