@@ -1330,16 +1330,16 @@ public class MobileGameShell : MonoBehaviour
         ert.anchoredPosition = Vector2.zero;
         ert.sizeDelta = new Vector2(0f, 2f);
 
-        idLabel = MakeHudText(bar.transform, "ID", new Vector2(24, 0), TextAnchor.MiddleLeft, 26, UiStyle.Cyan);
-        scoreLabel = MakeHudText(bar.transform, "分数 0", new Vector2(0, -6), TextAnchor.MiddleCenter, 30, UiStyle.TextPrimary);
-        waveLabel = MakeHudText(bar.transform, "波次 1", new Vector2(0, 26), TextAnchor.MiddleCenter, 18, UiStyle.Gold);
-        coinLabel = MakeHudText(bar.transform, "金币 0", new Vector2(-24, 0), TextAnchor.MiddleRight, 26, UiStyle.Gold);
+        idLabel = MakeHudText(bar.transform, "ID", new Vector2(20, 0), TextAnchor.MiddleLeft, 22, UiStyle.Cyan);
+        scoreLabel = MakeHudText(bar.transform, "分数 0", new Vector2(0, -8), TextAnchor.MiddleCenter, 26, UiStyle.TextPrimary);
+        waveLabel = MakeHudText(bar.transform, "波次 1", new Vector2(0, 24), TextAnchor.MiddleCenter, 16, UiStyle.Gold);
+        coinLabel = MakeHudText(bar.transform, "金币 0", new Vector2(-20, 0), TextAnchor.MiddleRight, 22, UiStyle.Gold);
 
-        // 单一暂停入口，去掉重复的「设置/模式」
-        MakeSmallBtn(hudRoot.transform, "暂停", new Vector2(-24, -90), () =>
+        // 暂停固定左下角，绝不与右上数据板重叠
+        MakeSmallBtn(hudRoot.transform, "暂停", new Vector2(20f, 24f), () =>
         {
             OpenPauseMenu();
-        });
+        }, bottomLeft: true);
     }
 
     void BuildPauseMenu(Transform canvas)
@@ -1871,7 +1871,7 @@ public class MobileGameShell : MonoBehaviour
         return go;
     }
 
-    static void MakeSmallBtn(Transform parent, string label, Vector2 pos, UnityEngine.Events.UnityAction action)
+    static void MakeSmallBtn(Transform parent, string label, Vector2 pos, UnityEngine.Events.UnityAction action, bool bottomLeft = false)
     {
         var go = new GameObject("SBtn_" + label);
         go.transform.SetParent(parent, false);
@@ -1880,10 +1880,18 @@ public class MobileGameShell : MonoBehaviour
         UiStyle.StyleButton(img, btn, new Color(0.14f, 0.22f, 0.40f, 0.88f), withShine: false);
         btn.onClick.AddListener(action);
         var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(1f, 1f);
+        if (bottomLeft)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0f);
+            rt.pivot = new Vector2(0f, 0f);
+        }
+        else
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 1f);
+        }
         rt.anchoredPosition = pos;
-        rt.sizeDelta = new Vector2(100, 44);
+        rt.sizeDelta = new Vector2(110, 48);
         var text = MakeText(go.transform, label, 20, Vector2.zero, Color.white);
         Stretch(text.rectTransform);
     }

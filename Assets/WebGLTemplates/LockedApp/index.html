@@ -105,7 +105,7 @@
     })();
   </script>
 
-  <script src="{{{ LOADER_FILENAME }}}"></script>
+  <script src="Build/{{{ LOADER_FILENAME }}}"></script>
   <script>
     var canvas = document.querySelector("#unity-canvas");
     var loading = document.querySelector("#unity-loading");
@@ -128,7 +128,10 @@
       devicePixelRatio: window.devicePixelRatio || 1
     };
     createUnityInstance(canvas, config, function (progress) {
-      // 保持全屏锁死，只更新简单文案
+      if (loading) {
+        var pct = Math.floor(progress * 100);
+        loading.textContent = "黄道征途 加载中… " + pct + "%";
+      }
     }).then(function (unityInstance) {
       if (loading) loading.classList.add("hidden");
     }).catch(function (message) {

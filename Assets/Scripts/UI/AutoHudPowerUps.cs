@@ -60,11 +60,21 @@ public class AutoHudPowerUps : MonoBehaviour
         canvas.sortingOrder = 50;
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
-        scaler.matchWidthOrHeight = 1f;
+        // 与手游壳层一致：竖屏按宽适配，避免字号被放得过大而叠字
+        if (Screen.height >= Screen.width)
+        {
+            scaler.referenceResolution = new Vector2(1080, 1920);
+            scaler.matchWidthOrHeight = 0f;
+        }
+        else
+        {
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 1f;
+        }
         canvasGo.AddComponent<GraphicRaycaster>();
 
-        // 右上数据板：避免与顶栏叠字，本组放击杀+得分明细
+        bool portrait = Screen.height >= Screen.width;
+        // 右上数据板：避开壳层顶栏（约72）与暂停钮
         var board = new GameObject("StatsBg", typeof(RectTransform), typeof(Image));
         board.transform.SetParent(canvasGo.transform, false);
         var bimg = board.GetComponent<Image>();
@@ -73,15 +83,18 @@ public class AutoHudPowerUps : MonoBehaviour
         var brt = (RectTransform)board.transform;
         brt.anchorMin = brt.anchorMax = new Vector2(1f, 1f);
         brt.pivot = new Vector2(1f, 1f);
-        brt.anchoredPosition = new Vector2(-12f, -12f);
-        brt.sizeDelta = new Vector2(260f, 150f);
+        brt.anchoredPosition = new Vector2(-12f, portrait ? -120f : -88f);
+        brt.sizeDelta = new Vector2(portrait ? 200f : 260f, portrait ? 110f : 150f);
 
-        scoreText = CreateText(board.transform, "ScoreText", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -12f), TextAnchor.UpperRight, 34);
-        highText = CreateText(board.transform, "HighText", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -52f), TextAnchor.UpperRight, 24, new Color(0.95f, 0.9f, 0.45f));
-        killText = CreateText(board.transform, "KillText", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -86f), TextAnchor.UpperRight, 24, new Color(0.7f, 0.9f, 1f));
-        waveText = CreateText(canvasGo.transform, "WaveText", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), TextAnchor.UpperCenter, 28, new Color(0.95f, 0.9f, 0.7f));
-        powerText = CreateText(canvasGo.transform, "PowerText", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 24f), TextAnchor.LowerLeft, 22, new Color(0.6f, 1f, 0.7f));
-        // 金币与顶栏重复，这里不显示
+        int sSize = portrait ? 26 : 34;
+        int mSize = portrait ? 18 : 24;
+        scoreText = CreateText(board.transform, "ScoreText", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-12f, -8f), TextAnchor.UpperRight, sSize);
+        highText = CreateText(board.transform, "HighText", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-12f, portrait ? -40f : -52f), TextAnchor.UpperRight, mSize, new Color(0.95f, 0.9f, 0.45f));
+        killText = CreateText(board.transform, "KillText", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-12f, portrait ? -68f : -86f), TextAnchor.UpperRight, mSize, new Color(0.7f, 0.9f, 1f));
+        // 波次：顶栏下方居中，避免与壳层「分数」叠
+        waveText = CreateText(canvasGo.transform, "WaveText", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, portrait ? -96f : -80f), TextAnchor.UpperCenter, portrait ? 20 : 28, new Color(0.95f, 0.9f, 0.7f));
+        powerText = CreateText(canvasGo.transform, "PowerText", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 24f), TextAnchor.LowerLeft, portrait ? 18 : 22, new Color(0.6f, 1f, 0.7f));
         powerText.text = "";
     }
 
